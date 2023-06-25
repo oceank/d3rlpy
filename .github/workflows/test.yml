@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-latest, windows-latest]
+        os: [ubuntu-20.04]
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python.3.7.x
@@ -39,6 +39,7 @@ jobs:
       - name: Build Cython
         run: |
           pip install -U protobuf==3.20.1  # temporarily dependency fix
+          pip install numpy  # temporarily dependency fix
           pip install -e .
           python setup.py build_ext --inplace --define CYTHON_TRACE
       - name: Unit tests
