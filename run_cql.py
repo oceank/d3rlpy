@@ -47,6 +47,7 @@ def main(args):
             'environment': d3rlpy.metrics.evaluate_on_environment(env, n_trials=args.eval_episode_num),
         },
         save_interval=args.save_interval,
+        show_progress = False, # disable the progress bar calculation in tqdm
     )
 
     print('training finished!')
