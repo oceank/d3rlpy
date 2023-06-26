@@ -16,7 +16,6 @@ from ...torch_utility import TorchMiniBatch, hard_sync, torch_api, train_api
 from .base import TorchImplBase
 from .utility import DiscreteQFunctionMixin
 
-
 class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
 
     _learning_rate: float
@@ -43,6 +42,7 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
         use_gpu: Optional[Device],
         scaler: Optional[Scaler],
         reward_scaler: Optional[RewardScaler],
+        init_q_func = None,
     ):
         super().__init__(
             observation_shape=observation_shape,
@@ -59,6 +59,8 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
         self._n_critics = n_critics
         self._use_gpu = use_gpu
 
+        self._init_q_func = init_q_func,
+
         # initialized in build
         self._q_func = None
         self._targ_q_func = None
@@ -66,7 +68,11 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
 
     def build(self) -> None:
         # setup torch models
-        self._build_network()
+        if self._init_q_func is not None:
+            self._q_func = copy.deepcopy(self._init_q_func)
+            self._init_q_func = None
+        else:
+            self._build_network()
 
         # setup target network
         self._targ_q_func = copy.deepcopy(self._q_func)
