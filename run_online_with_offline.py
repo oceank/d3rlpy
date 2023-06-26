@@ -21,7 +21,7 @@ def main(args):
         total_offline_learnings += 1
 
     target_update_interval_online_learning = args.num_steps_per_epoch // 2
-    target_update_interval_offline_learning = 200 # 100k//256(batch_size) = 400 updates / epoch.
+    target_update_interval_offline_learning = 20 # 100k//256(batch_size) = 400 gradient updates / epoch => 20 updates for target network per epoch.
 
     buffer_max_size = 100000
     buffer = None
