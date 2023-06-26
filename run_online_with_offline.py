@@ -121,6 +121,7 @@ def main(args):
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
+    parser.add_argument('--algo', type=str, default="double_dqn") # check names of all supported algorightms at https://github.com/takuseno/d3rlpy/blob/master/d3rlpy/algos/__init__.py
     parser.add_argument('--env_name', required=True)
     #parser.add_argument('--log_dir', required=True)
     parser.add_argument('--seed', type=int, default=0)
