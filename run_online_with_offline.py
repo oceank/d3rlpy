@@ -20,7 +20,8 @@ def main(args):
     if args.num_steps % args.num_steps_per_offline_learning != 0:
         total_offline_learnings += 1
 
-    target_update_interval = args.num_steps_per_offline_learning // 5
+    target_update_interval_online_learning = args.num_steps_per_epoch // 2
+    target_update_interval_offline_learning = 200 # 100k//256(batch_size) = 400 updates / epoch.
 
     buffer_max_size = 100000
     buffer = None
@@ -59,7 +60,7 @@ def main(args):
             learning_rate=args.learning_rate,
             n_frames=args.stack_frames,
             batch_size=args.batch_size,
-            target_update_interval=target_update_interval,
+            target_update_interval=target_update_interval_online_learning,
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
@@ -95,7 +96,7 @@ def main(args):
             learning_rate=args.learning_rate,
             n_frames=args.stack_frames,
             batch_size=args.batch_size,
-            target_update_interval=target_update_interval,
+            target_update_interval=target_update_interval_offline_learning,
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
