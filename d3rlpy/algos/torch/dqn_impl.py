@@ -59,7 +59,7 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
         self._n_critics = n_critics
         self._use_gpu = use_gpu
 
-        self._init_q_func = init_q_func,
+        self._init_q_func = init_q_func
 
         # initialized in build
         self._q_func = None

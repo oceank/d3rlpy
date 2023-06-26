@@ -61,11 +61,8 @@ def main(args):
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
-            init_q_func = pre_cql._impl.q_function() if pre_cql is not None else None,
+            init_q_func = pre_cql._impl.q_function if pre_cql is not None else None,
         )
-
-        del pre_cql
-        gc.collect()
 
         # prepare replay buffer
         buffer = buffer if buffer is not None else d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
@@ -94,11 +91,8 @@ def main(args):
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
-            init_q_func = ddqn._impl.q_function(),
+            init_q_func = ddqn._impl.q_function,
         )
-
-        del ddqn
-        gc.collect()
 
         # start training
         num_transitions_in_buffer = buffer.size()
@@ -109,16 +103,17 @@ def main(args):
         cql.fit(
             buffer._transitions._buffer[: num_transitions_in_buffer],
             eval_episodes=None, 
-            n_steps=args.num_steps, # number of transitions in the buffer
+            n_steps=num_transitions_in_buffer, # number of transitions in the buffer
             n_steps_per_epoch=num_steps_per_epoch, # number of processed transitions per epoch (or per evaluation)
             scorers={
-                'environment': d3rlpy.metrics.evaluate_on_environment(env, n_trials=args.eval_episode_num),
+                'environment': d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num),
             },
-            save_interval=num_epochs_offline_learning, # save the model only at the end of the offline learning
+            save_interval=num_transitions_in_buffer, # save the model only at the end of the offline learning
             eval_only_env = True, # in order to trigger evaluation on the environment
         )
 
         pre_cql = cql
+        gc.collect()
 
     print('training finished!')
 
