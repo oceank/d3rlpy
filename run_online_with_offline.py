@@ -6,7 +6,6 @@ import d3rlpy
 from d3rlpy.envs import ChannelFirst
 from d3rlpy.algos import DISCRETE_ALGORITHMS
 
-import gc
 
 def set_seed(seed, env=None):
     torch.manual_seed(seed)
@@ -27,8 +26,6 @@ def main(args):
 
     buffer_max_size = 100000
     buffer = None
-    pre_cql = None
-
 
     # prepare environment
     env = ChannelFirst(gym.make(args.env_name)) # 'Pong-v0'
@@ -41,7 +38,10 @@ def main(args):
 
     online_algo_name = "DoubleDQN"
     offline_algo_name = "DiscreteCQL"
+    ddqn = None
+    cql = None
     num_critics = 2
+    of_and_on_flag = "of4on"
 
     for offline_learning_idx in range(1, total_offline_learnings+1):
 
@@ -52,7 +52,6 @@ def main(args):
         # experiment_name: online_<algo1>_with_offline_<algo2>_on_<env_name>_seed_<seed>
         #    <env_name>_seed<seed>_<of4on/ofAon>_online<algo1>_start<Step1>_end<Step2>
         #    <env_name>_seed<seed>_<of4on/ofAon>_offline<algo2>_start<Step1>_end<Step2>
-        of_and_on_flag = "of4on"
         experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_{of_and_on_flag}_online{online_algo_name}_start{start_step}_end{end_step}"
         experiment_name_offline_algo = f"{args.env_name}_seed{args.seed}_{of_and_on_flag}_offline{offline_algo_name}_start{start_step}_end{end_step}"
 
@@ -68,8 +67,14 @@ def main(args):
             scaler='pixel',
             use_gpu=True,
             n_critics = num_critics,
-            init_q_func = pre_cql._impl.q_function if pre_cql is not None else None,
         )
+
+        # copy Q-function from the previous offline learning phase
+        ddqn.build_with_env(env)
+        if cql is not None:
+            ddqn.copy_q_function(cql)
+            ddqn.reset_optimizer_states() # might not be necessary
+            ddqn._impl.update_target()
 
         # prepare replay buffer
         buffer = buffer if buffer is not None else d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
@@ -105,8 +110,13 @@ def main(args):
             scaler='pixel',
             use_gpu=True,
             n_critics = num_critics,
-            init_q_func = ddqn._impl.q_function,
         )
+
+        # copy Q-function from the previous offline learning phase
+        cql.build_with_env(env)
+        cql.copy_q_function(ddqn)
+        cql.reset_optimizer_states() # might not be necessary
+        cql._impl.update_target()
 
         # start training
         cql.fit(
@@ -123,9 +133,6 @@ def main(args):
             show_progress = False,
             n_epochs_per_eval = num_epochs_offline_learning, # evaluate only at the end of the offline learning
         )
-
-        pre_cql = cql
-        gc.collect()
 
     print('training finished!')
 

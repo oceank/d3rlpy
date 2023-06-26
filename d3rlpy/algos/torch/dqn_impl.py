@@ -42,7 +42,6 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
         use_gpu: Optional[Device],
         scaler: Optional[Scaler],
         reward_scaler: Optional[RewardScaler],
-        init_q_func = None,
     ):
         super().__init__(
             observation_shape=observation_shape,
@@ -59,8 +58,6 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
         self._n_critics = n_critics
         self._use_gpu = use_gpu
 
-        self._init_q_func = init_q_func
-
         # initialized in build
         self._q_func = None
         self._targ_q_func = None
@@ -68,11 +65,7 @@ class DQNImpl(DiscreteQFunctionMixin, TorchImplBase):
 
     def build(self) -> None:
         # setup torch models
-        if self._init_q_func is not None:
-            self._q_func = copy.deepcopy(self._init_q_func)
-            self._init_q_func = None
-        else:
-            self._build_network()
+        self._build_network()
 
         # setup target network
         self._targ_q_func = copy.deepcopy(self._q_func)

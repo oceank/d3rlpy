@@ -87,7 +87,6 @@ class DQN(AlgoBase):
         scaler: ScalerArg = None,
         reward_scaler: RewardScalerArg = None,
         impl: Optional[DQNImpl] = None,
-        init_q_func = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -107,7 +106,6 @@ class DQN(AlgoBase):
         self._target_update_interval = target_update_interval
         self._use_gpu = check_use_gpu(use_gpu)
         self._impl = impl
-        self._init_q_func = init_q_func
 
     def _create_impl(
         self, observation_shape: Sequence[int], action_size: int
@@ -124,7 +122,6 @@ class DQN(AlgoBase):
             use_gpu=self._use_gpu,
             scaler=self._scaler,
             reward_scaler=self._reward_scaler,
-            init_q_func=self._init_q_func,
         )
         self._impl.build()
 
@@ -201,6 +198,5 @@ class DoubleDQN(DQN):
             use_gpu=self._use_gpu,
             scaler=self._scaler,
             reward_scaler=self._reward_scaler,
-            init_q_func=self._init_q_func,
         )
         self._impl.build()

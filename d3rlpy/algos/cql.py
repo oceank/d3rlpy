@@ -333,7 +333,6 @@ class DiscreteCQL(DoubleDQN):
         scaler: ScalerArg = None,
         reward_scaler: RewardScalerArg = None,
         impl: Optional[DiscreteCQLImpl] = None,
-        init_q_func = None,
         **kwargs: Any,
     ):
         super().__init__(
@@ -351,7 +350,6 @@ class DiscreteCQL(DoubleDQN):
             scaler=scaler,
             reward_scaler=reward_scaler,
             impl=impl,
-            init_q_func=init_q_func,
             **kwargs,
         )
         self._alpha = alpha
@@ -372,7 +370,6 @@ class DiscreteCQL(DoubleDQN):
             use_gpu=self._use_gpu,
             scaler=self._scaler,
             reward_scaler=self._reward_scaler,
-            init_q_func=self._init_q_func,
         )
         self._impl.build()
 
