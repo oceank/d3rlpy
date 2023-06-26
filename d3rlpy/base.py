@@ -366,6 +366,7 @@ class LearnableBase:
         ] = None,
         shuffle: bool = True,
         callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
+        eval_only_env = False,
     ) -> List[Tuple[int, Dict[str, float]]]:
         """Trains with the given dataset.
 
@@ -421,6 +422,7 @@ class LearnableBase:
                 scorers,
                 shuffle,
                 callback,
+                eval_only_env,
             )
         )
         return results
@@ -445,6 +447,7 @@ class LearnableBase:
         ] = None,
         shuffle: bool = True,
         callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
+        eval_only_env = False,
     ) -> Generator[Tuple[int, Dict[str, float]], None, None]:
         """Iterate over epochs steps to train with the given dataset. At each
              iteration algo methods and properties can be changed or queried.
@@ -661,7 +664,7 @@ class LearnableBase:
                 if vals:
                     self._loss_history[name].append(np.mean(vals))
 
-            if scorers and eval_episodes:
+            if scorers and (eval_only_env or eval_episodes):
                 self._evaluate(eval_episodes, scorers, logger)
 
             # save metrics
