@@ -42,6 +42,8 @@ def main(args):
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=1000000, env=env)
 
     # start training
+    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{args.algo}"
+
     model.fit_online(
         env,
         buffer,
@@ -51,7 +53,18 @@ def main(args):
         eval_env=eval_env, # 10 episodes are evaluated for each epoch. To modify the number episodes to evaluate, it needs to pass the info through this line fit_online()->train_single_env()->evaluate_on_environment()
         save_interval = args.save_interval,
         show_progress = False, # disable progress bar calculation in tqdm
+        experiment_name = experiment_name_online_algo,
     )
+
+    # save the replay buffer
+    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{args.algo}_steps{args.num_steps}.h5"
+    buffer_dataset_path = os.path.join(
+        model.active_logger._logdir,
+        buffer_dataset_filename,
+    )
+    print(f"Saving the buffer dataset to {buffer_dataset_path}")
+    buffer_dataset = buffer.to_mdp_dataset()
+    buffer_dataset.dump(fname=buffer_dataset_filename)
 
     print('training finished!')
 
