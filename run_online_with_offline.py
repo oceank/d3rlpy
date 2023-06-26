@@ -20,6 +20,8 @@ def main(args):
     if args.num_steps % args.num_steps_per_offline_learning != 0:
         total_offline_learnings += 1
 
+    target_update_interval = args.num_steps_per_offline_learning // 5
+
     buffer_max_size = 100000
     buffer = None
     pre_cql = None
@@ -57,7 +59,7 @@ def main(args):
             learning_rate=args.learning_rate,
             n_frames=args.stack_frames,
             batch_size=args.batch_size,
-            target_update_interval=args.target_update_interval,
+            target_update_interval=target_update_interval,
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
@@ -68,6 +70,7 @@ def main(args):
         buffer = buffer if buffer is not None else d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
 
         # start online training
+        num_epochs_online_learning = args.num_steps_per_offline_learning // args.num_steps_per_epoch
         ddqn.fit_online(
             env,
             buffer,
@@ -75,7 +78,7 @@ def main(args):
             n_steps_per_epoch=args.num_steps_per_epoch,
             update_interval=1, # update every 1 step
             eval_env=eval_env, # 10 episodes are evaluated for each epoch. To modify the number episodes to evaluate, it needs to pass the info through this line fit_online()->train_single_env()->evaluate_on_environment()
-            save_interval = args.save_interval,
+            save_interval = num_epochs_online_learning, # save a model at the end of each online learning phase
             experiment_name = experiment_name_online_algo,
             show_progress = False, # show progress bar. Set to False when deploying in the cluster to save the log file
         )
@@ -83,11 +86,16 @@ def main(args):
         # Offline training
         # prepare algorithm
         print(f"Offline Learning: Phase {offline_learning_idx}/{total_offline_learnings}")
+        num_transitions_in_buffer = buffer.size()
+        num_epochs_offline_learning = 10
+        num_steps_per_epoch = num_transitions_in_buffer // num_epochs_offline_learning
+        #if num_transitions_in_buffer % num_epochs_offline_learning != 0:
+        #    num_steps_per_epoch += 1
         cql = d3rlpy.algos.DiscreteCQL(
             learning_rate=args.learning_rate,
             n_frames=args.stack_frames,
             batch_size=args.batch_size,
-            target_update_interval=args.target_update_interval,
+            target_update_interval=target_update_interval,
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
@@ -95,11 +103,6 @@ def main(args):
         )
 
         # start training
-        num_transitions_in_buffer = buffer.size()
-        num_epochs_offline_learning = 100
-        num_steps_per_epoch = num_transitions_in_buffer // num_epochs_offline_learning
-        if num_transitions_in_buffer % num_epochs_offline_learning != 0:
-            num_steps_per_epoch += 1
         cql.fit(
             buffer._transitions._buffer[: num_transitions_in_buffer],
             eval_episodes=None, 
@@ -110,7 +113,8 @@ def main(args):
             },
             save_interval=num_epochs_offline_learning, # save the model only at the end of the offline learning
             eval_only_env = True, # in order to trigger evaluation on the environment
-            show_progress = False
+            show_progress = False,
+            n_epochs_per_eval = num_epochs_offline_learning, # evaluate only at the end of the offline learning
         )
 
         pre_cql = cql
@@ -135,7 +139,6 @@ if __name__ == '__main__':
                         help='Number of evaluation episodes (default: 10)')
     parser.add_argument('--save_interval', type=int, default=10, metavar='N',
                         help='number of elapsed epochs when saving a model (default: 10)')
-
     parser.add_argument('--num_steps_per_offline_learning', type=int, default=10000, metavar='N',
                         help='number of training steps per offline learning (default: 10000)')
 
