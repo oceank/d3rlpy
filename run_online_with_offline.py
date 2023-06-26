@@ -77,7 +77,7 @@ def main(args):
             eval_env=eval_env, # 10 episodes are evaluated for each epoch. To modify the number episodes to evaluate, it needs to pass the info through this line fit_online()->train_single_env()->evaluate_on_environment()
             save_interval = args.save_interval,
             experiment_name = experiment_name_online_algo,
-            show_progress = True, # show progress bar. Set to False when deploying in the cluster to save the log file
+            show_progress = False, # show progress bar. Set to False when deploying in the cluster to save the log file
         )
 
         # Offline training
@@ -108,8 +108,9 @@ def main(args):
             scorers={
                 'environment': d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num),
             },
-            save_interval=num_transitions_in_buffer, # save the model only at the end of the offline learning
+            save_interval=num_epochs_offline_learning, # save the model only at the end of the offline learning
             eval_only_env = True, # in order to trigger evaluation on the environment
+            show_progress = False
         )
 
         pre_cql = cql
