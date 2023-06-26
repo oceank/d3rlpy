@@ -112,6 +112,7 @@ def main(args):
                 'environment': d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num),
             },
             save_interval=num_epochs_offline_learning, # save the model only at the end of the offline learning
+            experiment_name = experiment_name_offline_algo,
             eval_only_env = True, # in order to trigger evaluation on the environment
             show_progress = False,
             n_epochs_per_eval = num_epochs_offline_learning, # evaluate only at the end of the offline learning
