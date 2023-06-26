@@ -4,6 +4,8 @@ import torch
 import gym
 import d3rlpy
 from d3rlpy.envs import ChannelFirst
+from d3rlpy.algos import DISCRETE_ALGORITHMS
+
 import gc
 
 def set_seed(seed, env=None):
@@ -37,8 +39,9 @@ def main(args):
     if eval_env is not None:
         eval_env.seed(args.seed_eval)
 
-    online_algo_name = "DDQN"
-    offline_algo_name = "CQL"
+    online_algo_name = "DoubleDQN"
+    offline_algo_name = "DiscreteCQL"
+    num_critics = 2
 
     for offline_learning_idx in range(1, total_offline_learnings+1):
 
@@ -64,6 +67,7 @@ def main(args):
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
+            n_critics = num_critics,
             init_q_func = pre_cql._impl.q_function if pre_cql is not None else None,
         )
 
@@ -100,6 +104,7 @@ def main(args):
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
+            n_critics = num_critics,
             init_q_func = ddqn._impl.q_function,
         )
 

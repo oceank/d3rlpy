@@ -25,6 +25,7 @@ def main(args):
     if eval_env is not None:
         eval_env.seed(args.seed_eval)
 
+    num_critics = 2
     # prepare algorithm
     model = create_algo(
             args.algo,
@@ -36,13 +37,14 @@ def main(args):
             q_func_factory='qr',
             scaler='pixel',
             use_gpu=True,
+            n_critics = num_critics,
     )
 
     # prepare replay buffer
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=1000000, env=env)
 
     # start training
-    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{args.algo}"
+    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{model.__class__.__name__}"
 
     model.fit_online(
         env,
