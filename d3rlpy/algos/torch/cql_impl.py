@@ -259,7 +259,6 @@ class DiscreteCQLImpl(DoubleDQNImpl):
         use_gpu: Optional[Device],
         scaler: Optional[Scaler],
         reward_scaler: Optional[RewardScaler],
-        init_q_func = None,
     ):
         super().__init__(
             observation_shape=observation_shape,
@@ -273,7 +272,6 @@ class DiscreteCQLImpl(DoubleDQNImpl):
             use_gpu=use_gpu,
             scaler=scaler,
             reward_scaler=reward_scaler,
-            init_q_func=init_q_func,
         )
         self._alpha = alpha
 
