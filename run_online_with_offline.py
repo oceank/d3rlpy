@@ -28,18 +28,35 @@ def main(args):
 
     online_algo_name = "DoubleDQN"
     offline_algo_name = "DiscreteCQL"
-    ddqn = None
     cql = None
     num_critics = 2
     buffer_max_size = 100000 # 100k transitions
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
-       
+
+    ddqn = d3rlpy.algos.DoubleDQN(
+        learning_rate=args.online_learning_rate,
+        n_frames=args.stack_frames,
+        batch_size=args.online_learning_batch_size,
+        target_update_interval=args.online_learning_target_update_interval,
+        q_func_factory='qr',
+        optim_factory=d3rlpy.models.optimizers.RMSpropFactory(),
+        scaler='pixel',
+        use_gpu=True,
+        n_critics = num_critics,
+    )
+
+    # copy Q-function from the previous offline learning phase
+    ddqn.build_with_env(env)
+
     of_and_on_flag = "of4on"
-    num_epochs_offline_learning = args.num_offline_learning_bootstrap
-
     num_steps_per_phase = args.num_steps // args.num_offline_learning_bootstrap
-    update_start_step=5000 # start updating after 5k interactions
+    num_epochs_online_learning = num_steps_per_phase // args.num_steps_per_epoch
 
+    greedy_epsilon_exploration_duration = 500 # 500/10k, 2k/100k, 1M/50M
+    update_start_step = greedy_epsilon_exploration_duration // 20
+    explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
+        start_epsilon=1.0, end_epsilon=0.1, duration=greedy_epsilon_exploration_duration)
+        
     for offline_bootstrap_phase_idx in range(1, args.num_offline_learning_bootstrap+1):
 
         print(f"Offline Learning For Online Learning: Phase {offline_bootstrap_phase_idx}/{args.num_offline_learning_bootstrap}")
@@ -53,36 +70,39 @@ def main(args):
         # Online Training
         # prepare algorithm for online learning
         print(f"Online Learning: Phase {offline_bootstrap_phase_idx}/{args.num_offline_learning_bootstrap}")
-        ddqn = d3rlpy.algos.DoubleDQN(
-            learning_rate=args.online_learning_rate,
-            n_frames=args.stack_frames,
-            batch_size=args.online_learning_batch_size,
-            target_update_interval=args.online_learning_target_update_interval,
-            q_func_factory='qr',
-            optim_factory=d3rlpy.models.optimizers.RMSpropFactory(),
-            scaler='pixel',
-            use_gpu=True,
-            n_critics = num_critics,
-        )
-
-        # copy Q-function from the previous offline learning phase
-        ddqn.build_with_env(env)
+        '''
+        if offline_bootstrap_phase_idx == 1: # collect 5k interactions using random policy to initiate the buffer
+            print(f"Random Exploration for {update_start_step} steps to initiate the buffer before online learning")
+            experiment_name_online_algo_exploration = f"{args.env_name}_seed{args.seed}_{of_and_on_flag}_online{online_algo_name}_initialExploration"
+            explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
+            start_epsilon=1.0, end_epsilon=1.0, duration=update_start_step) # 500/10k, 2k/100k, 1M/50M
+            ddqn.fit_online(
+                env,
+                buffer,
+                explorer,
+                n_steps=update_start_step, # number of max steps of random exploration for initiating the buffer
+                n_steps_per_epoch=update_start_step,
+                update_interval=1, # update every interaction
+                update_start_step=update_start_step,
+                eval_env=eval_env,
+                eval_epsilon=0.01,
+                save_interval = 1, # save the initial model at the end of random exploration
+                experiment_name = experiment_name_online_algo_exploration,
+                show_progress = args.show_progress,
+            )
+        '''
+        # Bootstrap online learning with the offline-learned Q-function
         if cql is not None:
             ddqn.copy_q_function(cql)
             ddqn.reset_optimizer_states() # might not be necessary
             ddqn._impl.update_target()
 
-        explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
-            start_epsilon=1.0, end_epsilon=0.1, duration=500) # 500/10k, 2k/100k, 1M/50M
-
         # start online training
-        num_epochs_online_learning = num_steps_per_phase // args.num_steps_per_epoch
-        n_steps_phase = num_steps_per_phase if offline_bootstrap_phase_idx > 1 else num_steps_per_phase + update_start_step
         ddqn.fit_online(
             env,
             buffer,
             explorer,
-            n_steps=n_steps_phase, # number of max steps for online learning at the current phase
+            n_steps=num_steps_per_phase, # number of max steps for online learning at the current phase
             n_steps_per_epoch=args.num_steps_per_epoch,
             update_interval=1, # update every interaction
             update_start_step=update_start_step,
@@ -97,9 +117,10 @@ def main(args):
         # prepare algorithm
         print(f"Offline Learning: Phase {offline_bootstrap_phase_idx}/{args.num_offline_learning_bootstrap}")
         num_transitions_in_buffer = buffer.size()
-        num_steps_per_epoch = num_transitions_in_buffer // num_epochs_offline_learning
-        #if num_transitions_in_buffer % num_epochs_offline_learning != 0:
-        #    num_steps_per_epoch += 1
+        num_training_steps_offline_learning = num_transitions_in_buffer * 5 # 5X gradient steps of online learning
+        num_epochs_offline_learning = 10
+        num_steps_per_epoch_offline_learning = num_training_steps_offline_learning // num_epochs_offline_learning
+
         cql = d3rlpy.algos.DiscreteCQL(
             learning_rate=args.offline_learning_rate,
             n_frames=args.stack_frames,
@@ -134,12 +155,13 @@ def main(args):
         '''
 
         # start training
-        n_offline_training_steps = num_transitions_in_buffer * 5 # 5X gradient steps of online learning
+        mdp_dataset = buffer.to_mdp_dataset()
+        
         cql.fit(
-            buffer._transitions._buffer[: num_transitions_in_buffer],
+            mdp_dataset.episodes, #buffer._transitions._buffer[: num_transitions_in_buffer],
             eval_episodes=[None], 
-            n_steps=n_offline_training_steps, # number of training steps
-            n_steps_per_epoch=n_offline_training_steps//num_epochs_offline_learning, # number of training steps per epoch
+            n_steps=num_training_steps_offline_learning, # number of training steps
+            n_steps_per_epoch=num_steps_per_epoch_offline_learning, # number of training steps per epoch
             scorers={
                 'environment': eval_env_scorer,
             },
@@ -158,7 +180,7 @@ if __name__ == '__main__':
     parser.add_argument('--env_name', required=True)
     #parser.add_argument('--log_dir', required=True)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--seed_eval', type=int, default=100000)
+    #parser.add_argument('--seed_eval', type=int, default=100000)
 
     parser.add_argument('--num_steps', type=int, default=100000, metavar='N',
                         help='maximum number of training steps during online learning (default: 100000)')
