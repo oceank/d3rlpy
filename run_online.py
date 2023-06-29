@@ -1,4 +1,5 @@
 import random
+import os
 import numpy as np
 import torch
 import gym
@@ -70,9 +71,9 @@ def main(args):
     )
 
     # save the replay buffer
-    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{args.algo}_steps{args.num_steps}_baselineAdam.h5"
+    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_steps{args.num_steps}_baselineAdam.h5"
     buffer_dataset_path = os.path.join(
-        model.active_logger._logdir,
+        ddqn.active_logger._logdir,
         buffer_dataset_filename,
     )
     print(f"Saving the buffer dataset to {buffer_dataset_path}")
