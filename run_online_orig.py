@@ -12,8 +12,8 @@ def main():
     args = parser.parse_args()
 
     # get wrapped atari environment
-    env = d3rlpy.envs.Atari(gym.make(args.env))
-    eval_env = d3rlpy.envs.Atari(gym.make(args.env), is_eval=True)
+    env = d3rlpy.envs.Atari(gym.make(args.env_name))
+    eval_env = d3rlpy.envs.Atari(gym.make(args.env_name), is_eval=True)
 
     # fix seed
     d3rlpy.seed(args.seed)
