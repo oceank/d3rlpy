@@ -6,7 +6,8 @@ import d3rlpy
 from d3rlpy.envs import ChannelFirst
 from d3rlpy.algos import create_algo
 
-def set_seed(seed, env=None):
+
+def set_seed(seed, env=None, eval_env=None):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
@@ -14,52 +15,62 @@ def set_seed(seed, env=None):
     random.seed(seed)
     if env is not None:
         env.seed(seed)
+    if eval_env is not None:
+        eval_env.seed(seed)
+
 
 def main(args):
-    # prepare environment
-    env = ChannelFirst(gym.make(args.env_name)) # 'Pong-v0'
-    eval_env = ChannelFirst(gym.make(args.env_name))
+    
+    # get wrapped atari environment
+    env = d3rlpy.envs.Atari(gym.make(args.env_name))
+    eval_env = d3rlpy.envs.Atari(gym.make(args.env_name), is_eval=True)
+    set_seed(args.seed, env=env, eval_env=eval_env)
+    eval_env_scorer = d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num, epsilon=0.001)
+    set_seed(args.seed, env=env, eval_env=eval_env)
+    eval_env_scorer = d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num, epsilon=0.001)
 
-    if args.seed is not None:
-        set_seed(args.seed, env=env)
-    if eval_env is not None:
-        eval_env.seed(args.seed_eval)
-
+    num_steps_per_epoch_online_learning = args.num_steps // args.num_online_epochs
     num_critics = 2
-    # prepare algorithm
-    model = create_algo(
-            args.algo,
-            True, # discrete action space
-            learning_rate=args.learning_rate,
-            n_frames=args.stack_frames,
-            batch_size=args.batch_size,
-            target_update_interval=args.target_update_interval,
-            q_func_factory='qr',
-            scaler='pixel',
-            use_gpu=True,
-            n_critics = num_critics,
-    )
+    buffer_max_size = 100000 # 100k transitions
+    buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
 
-    # prepare replay buffer
-    buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=1000000, env=env)
+    ddqn = d3rlpy.algos.DoubleDQN(
+        learning_rate=args.online_learning_rate,
+        n_frames=args.stack_frames,
+        batch_size=args.online_learning_batch_size,
+        target_update_interval=args.online_learning_target_update_interval,
+        q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(n_quantiles=200),
+        optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
+        reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
+        scaler='pixel',
+        use_gpu=True,
+        n_critics = num_critics,
+    )
+    
+    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_baselineAdam"
+    
+    # epilon-greedy explorer
+    explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
+        start_epsilon=1.0, end_epsilon=0.1, duration=args.greedy_epsilon_exploration_duration)
 
     # start training
-    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{model.__class__.__name__}"
-
-    model.fit_online(
+    ddqn.fit_online(
         env,
         buffer,
+        explorer,
         n_steps=args.num_steps,
-        n_steps_per_epoch=args.num_steps_per_epoch,
+        n_steps_per_epoch=num_steps_per_epoch_online_learning,
         update_interval=1, # update every 1 step
         eval_env=eval_env, # 10 episodes are evaluated for each epoch. To modify the number episodes to evaluate, it needs to pass the info through this line fit_online()->train_single_env()->evaluate_on_environment()
-        save_interval = args.save_interval,
-        show_progress = False, # disable progress bar calculation in tqdm
+        eval_epsilon=0.01,
+        update_start_step=args.update_start_step_online_learning,
+        save_interval = args.num_online_epochs, # save the model when the last epoch finishes
+        show_progress = args.show_progress, # disable progress bar calculation in tqdm
         experiment_name = experiment_name_online_algo,
     )
 
     # save the replay buffer
-    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{args.algo}_steps{args.num_steps}.h5"
+    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{args.algo}_steps{args.num_steps}_baselineAdam.h5"
     buffer_dataset_path = os.path.join(
         model.active_logger._logdir,
         buffer_dataset_filename,
@@ -77,21 +88,21 @@ if __name__ == '__main__':
     parser.add_argument('--env_name', required=True)
     #parser.add_argument('--log_dir', required=True)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--seed_eval', type=int, default=100000)
 
-    parser.add_argument('--num_steps', type=int, default=1000000, metavar='N',
-                        help='maximum number of training steps (default: 1000000)')
-    parser.add_argument('--num_steps_per_epoch', type=int, default=10000, metavar='N',
-                        help='number of training steps per epoch (default: 10000)')
-    parser.add_argument('--eval_episode_num', type=int, default=10,
-                        help='Number of evaluation episodes (default: 10)')
-    parser.add_argument('--save_interval', type=int, default=10, metavar='N',
-                        help='number of elapsed epochs when saving a model (default: 10)')
+    parser.add_argument('--num_steps', type=int, default=100000, metavar='N',
+                        help='maximum number of training steps (default: 100000 (100k))')
+    parser.add_argument('--num_online_epochs', type=int, default=10, metavar='N',
+                        help='number of training epochs per phase during online learning (default: 10)')
+    parser.add_argument('--eval_episode_num', type=int, default=32,
+                        help='Number of evaluation episodes (default: 32)')
 
-    parser.add_argument('--stack_frames', type=int, default=4)                    
-    parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--learning_rate', type=float, default=6.25e-5)
-    parser.add_argument('--target_update_interval', type=int, default=5000)
+    parser.add_argument('--stack_frames', type=int, default=4)          
+    parser.add_argument('--online_learning_batch_size', type=int, default=32)
+    parser.add_argument('--online_learning_rate', type=float, default=3e-4)
+    parser.add_argument('--online_learning_target_update_interval', type=int, default=1000) # 1000 gradient steps
+    parser.add_argument('--greedy_epsilon_exploration_duration', type=int, default=2000) # 2000 gradient steps
+    parser.add_argument('--update_start_step_online_learning', type=int, default=1000) # 1000 gradient steps
+    parser.add_argument('--show_progress', type=bool, default=False)
 
     args = parser.parse_args()
     print(f"args: {args}")

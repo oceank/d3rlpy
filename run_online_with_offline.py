@@ -198,7 +198,7 @@ if __name__ == '__main__':
     parser.add_argument('--offline_learning_target_update_interval', type=int, default=1000) # 1000 gradient steps
     parser.add_argument('--cql_alpha', type=float, default=4.0)
     parser.add_argument('--greedy_epsilon_exploration_duration', type=int, default=2000) # 2000 gradient steps
-    parser.add_argument('--update_start_step_online_learning', type=int, default=1000) # 500 gradient steps
+    parser.add_argument('--update_start_step_online_learning', type=int, default=1000) # 1000 gradient steps
     parser.add_argument('--show_progress', type=bool, default=False)
     parser.add_argument('--bootstrap_offline_with_online', type=bool, default=False) # Copy online-learned Q-function to bootstrap the offline learning
 
