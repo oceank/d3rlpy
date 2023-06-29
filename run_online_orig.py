@@ -60,7 +60,7 @@ def main():
 
 
     # save the replay buffer
-    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_steps{num_steps}_baselineOrig.h5"
+    buffer_dataset_filename = f"buffer_{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_steps{n_steps}_baselineOrig.h5"
     buffer_dataset_path = os.path.join(
         ddqn.active_logger._logdir,
         buffer_dataset_filename,
