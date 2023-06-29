@@ -9,6 +9,7 @@ def main():
     parser.add_argument('--env_name', type=str, default='BreakoutNoFrameskip-v4')
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--show_progress', action='store_true')
     args = parser.parse_args()
 
     # get wrapped atari environment
