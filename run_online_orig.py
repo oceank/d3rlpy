@@ -27,8 +27,9 @@ def main():
         batch_size=32,
         learning_rate=2.5e-4,
         optim_factory=d3rlpy.models.optimizers.RMSpropFactory(),
+        q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(n_quantiles=200),
         target_update_interval=1000,
-        q_func_factory='mean',
+        #q_func_factory='mean',
         scaler='pixel',
         n_frames=4,
         use_gpu=args.gpu,
@@ -42,8 +43,8 @@ def main():
         start_epsilon=1.0, end_epsilon=0.1, duration=2000)
 
     n_steps = 100000
-    n_steps_per_epoch = 10000
-    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_baselineOrig"
+    n_steps_per_epoch = 1000
+    experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_step{n_steps}_baselineOrig.h5"
     # start training
     ddqn.fit_online(env,
                     buffer,

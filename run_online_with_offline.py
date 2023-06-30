@@ -41,9 +41,9 @@ def main(args):
         batch_size=args.online_learning_batch_size,
         target_update_interval=args.online_learning_target_update_interval,
         q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(n_quantiles=200),
-        # optim_factory=d3rlpy.models.optimizers.RMSpropFactory(),
-        optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
-        reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
+        optim_factory=d3rlpy.models.optimizers.RMSpropFactory(),
+        # optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
+        # reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
         scaler='pixel',
         use_gpu=True,
         n_critics = num_critics,
@@ -121,8 +121,8 @@ def main(args):
         # prepare algorithm
         print(f"Offline Learning: Phase {offline_bootstrap_phase_idx}/{args.num_offline_learning_bootstrap}")
         num_transitions_in_buffer = buffer.size()
-        num_training_steps_offline_learning = num_transitions_in_buffer * 5 # 5X gradient steps of online learning
-        num_steps_per_epoch_offline_learning = num_training_steps_offline_learning // args.num_offline_epochs
+        num_training_steps_offline_learning = num_transitions_in_buffer * args.num_offline_epochs # 5X gradient steps of online learning
+        num_steps_per_epoch_offline_learning = num_transitions_in_buffer
 
         cql = d3rlpy.algos.DiscreteCQL(
             learning_rate=args.offline_learning_rate,
@@ -180,8 +180,8 @@ if __name__ == '__main__':
                         help='maximum number of training steps during online learning (default: 100000 (100k))')
     parser.add_argument('--num_offline_learning_bootstrap', type=int, default=5, metavar='N',
                         help='number of offline learning bootstraps for the entire online learning process(default: 5)')
-    parser.add_argument('--num_online_epochs', type=int, default=10, metavar='N',
-                        help='number of training epochs per phase during online learning (default: 10)')
+    parser.add_argument('--num_online_epochs', type=int, default=5, metavar='N',
+                        help='number of training epochs per phase during online learning (default: 5). It indicates the number of using the entire saved dataset for offline training.')
     parser.add_argument('--num_offline_epochs', type=int, default=10, metavar='N',
                         help='number of training epochs per phase during offline learning (default: 10)')
     parser.add_argument('--eval_episode_num', type=int, default=32,

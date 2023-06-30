@@ -92,8 +92,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--num_steps', type=int, default=100000, metavar='N',
                         help='maximum number of training steps (default: 100000 (100k))')
-    parser.add_argument('--num_online_epochs', type=int, default=10, metavar='N',
-                        help='number of training epochs per phase during online learning (default: 10)')
+    parser.add_argument('--num_online_epochs', type=int, default=100, metavar='N',
+                        help='number of training epochs per phase during online learning (default: 100)')
     parser.add_argument('--eval_episode_num', type=int, default=32,
                         help='Number of evaluation episodes (default: 32)')
 
