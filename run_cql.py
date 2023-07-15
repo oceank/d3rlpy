@@ -29,8 +29,8 @@ def main(args):
     cql.fit(
         dataset,
         eval_episodes=[None],
-        n_steps=50000000 // 4,
-        n_steps_per_epoch=125000, # 50000000 // 4 // 125000 = 1000 epochs
+        n_steps=50000000 // 8, # divide by 4 - 100 epochs, divide by 8 - 50 epochs
+        n_steps_per_epoch=125000, # 50000000 // 4 // 125000 = 100 epochs
         scorers={
             'environment': env_scorer,
         },
