@@ -8,6 +8,7 @@ def main():
     parser.add_argument('--env', type=str, default='Hopper-v2')
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--save_buffer', action='store_true')
     args = parser.parse_args()
 
     env = gym.make(args.env)
@@ -37,6 +38,9 @@ def main():
                    update_interval=1,
                    update_start_step=1000)
 
+    if args.save_buffer:
+        mdp_dataset = buffer.to_mdp_dataset()
+        mdp_dataset.dump(f'buffer_{args.env}_seed{args.seed}.h5')
 
 if __name__ == '__main__':
     main()
