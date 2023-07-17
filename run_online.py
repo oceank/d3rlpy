@@ -27,12 +27,10 @@ def main(args):
     eval_env = d3rlpy.envs.Atari(gym.make(args.env_name), is_eval=True)
     set_seed(args.seed, env=env, eval_env=eval_env)
     eval_env_scorer = d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num, epsilon=0.001)
-    set_seed(args.seed, env=env, eval_env=eval_env)
-    eval_env_scorer = d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num, epsilon=0.001)
 
     num_steps_per_epoch_online_learning = args.num_steps // args.num_online_epochs
     num_critics = 2
-    buffer_max_size = 100000 # 100k transitions
+    buffer_max_size = 1000000 # 1M transitions
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
 
     ddqn = d3rlpy.algos.DoubleDQN(
@@ -41,7 +39,7 @@ def main(args):
         batch_size=args.online_learning_batch_size,
         target_update_interval=args.online_learning_target_update_interval,
         q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(n_quantiles=200),
-        optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
+        optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1.5e-4),
         reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
         scaler='pixel',
         use_gpu=True,
@@ -52,7 +50,7 @@ def main(args):
     
     # epilon-greedy explorer
     explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
-        start_epsilon=1.0, end_epsilon=0.1, duration=args.greedy_epsilon_exploration_duration)
+        start_epsilon=1.0, end_epsilon=0.01, duration=args.greedy_epsilon_exploration_duration)
 
     # start training
     ddqn.fit_online(
@@ -90,19 +88,19 @@ if __name__ == '__main__':
     #parser.add_argument('--log_dir', required=True)
     parser.add_argument('--seed', type=int, default=0)
 
-    parser.add_argument('--num_steps', type=int, default=100000, metavar='N',
-                        help='maximum number of training steps (default: 100000 (100k))')
-    parser.add_argument('--num_online_epochs', type=int, default=100, metavar='N',
-                        help='number of training epochs per phase during online learning (default: 100)')
+    parser.add_argument('--num_steps', type=int, default=20000000, metavar='N',
+                        help='maximum number of training steps (default: 20000000 (20M))')
+    parser.add_argument('--num_online_epochs', type=int, default=20, metavar='N',
+                        help='number of training epochs per phase during online learning (default: 20)')
     parser.add_argument('--eval_episode_num', type=int, default=32,
                         help='Number of evaluation episodes (default: 32)')
 
     parser.add_argument('--stack_frames', type=int, default=4)          
     parser.add_argument('--online_learning_batch_size', type=int, default=32)
-    parser.add_argument('--online_learning_rate', type=float, default=3e-4)
-    parser.add_argument('--online_learning_target_update_interval', type=int, default=1000) # 1000 gradient steps
-    parser.add_argument('--greedy_epsilon_exploration_duration', type=int, default=2000) # 2000 gradient steps
-    parser.add_argument('--update_start_step_online_learning', type=int, default=1000) # 1000 gradient steps
+    parser.add_argument('--online_learning_rate', type=float, default=6.25e-5)
+    parser.add_argument('--online_learning_target_update_interval', type=int, default=8000) # 8000 gradient steps
+    parser.add_argument('--greedy_epsilon_exploration_duration', type=int, default=62500) # 62.5 gradient steps/250K Frames
+    parser.add_argument('--update_start_step_online_learning', type=int, default=50000) # 50k gradient steps/200K Frames
     parser.add_argument('--show_progress', type=bool, default=False)
 
     args = parser.parse_args()
