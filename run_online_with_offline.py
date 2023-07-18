@@ -1,3 +1,4 @@
+import os
 import random
 import numpy as np
 import torch
@@ -46,6 +47,23 @@ def main(args):
         n_critics = num_critics,
     )
 
+    best_cql = None
+    if args.bootstrap_online_with_best_offline_model:
+        best_cql = d3rlpy.algos.DiscreteCQL(
+            learning_rate=args.offline_learning_rate,
+            optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
+            batch_size=args.offline_learning_batch_size,
+            alpha=args.cql_alpha,
+            q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(
+                n_quantiles=200),
+            scaler="pixel",
+            n_frames=args.stack_frames,
+            target_update_interval=args.offline_learning_target_update_interval,
+            reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
+            use_gpu=True,
+            n_critics = num_critics,
+            )
+
     ddqn.build_with_env(env)
     of_and_on_flag = "of4on"
     
@@ -87,8 +105,9 @@ def main(args):
             )
         '''
         # Bootstrap online learning with the offline-learned Q-function
-        if cql is not None:
-            ddqn.copy_q_function_from(cql)
+        if  offline_bootstrap_phase_idx>1:
+            target_cql = best_cql if args.bootstrap_online_with_best_offline_model else cql
+            ddqn.copy_q_function_from(target_cql)
             ddqn.reset_optimizer_states() # might not be necessary
             ddqn._impl.update_target()
 
@@ -156,13 +175,16 @@ def main(args):
             n_steps_per_epoch=num_steps_per_epoch_offline_learning, # number of training steps per epoch
             scorers={
                 'environment': eval_env_scorer,
-                'td_error': d3rlpy.metrics.td_error_scorer,
             },
             save_interval=args.num_offline_epochs, # save the model only at the end of the offline learning
             experiment_name = experiment_name_offline_algo,
             show_progress = args.show_progress, # show progress bar. Set to False when deploying in the cluster to save the log file,
             n_epochs_per_eval = 1, # evaluate the model at the end of each epoch
         )
+
+        if args.bootstrap_online_with_best_offline_model:
+            best_model_path = os.path.join(cql._learning_log_dir, "moeld_best.pt")
+            best_cql.load_model(best_model_path)
 
     print('training finished!')
 
@@ -200,6 +222,7 @@ if __name__ == '__main__':
     parser.add_argument('--update_start_step_online_learning', type=int, default=50000) # 1000 gradient steps
     parser.add_argument('--show_progress', type=bool, default=False)
     parser.add_argument('--bootstrap_offline_with_online', type=bool, default=False) # Copy online-learned Q-function to bootstrap the offline learning
+    parser.add_argument('--bootstrap_online_with_best_offline_model', type=bool, default=True)
 
     args = parser.parse_args()
     print(f"args: {args}")

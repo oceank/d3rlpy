@@ -148,10 +148,11 @@ class D3RLPyLogger:
         self._metrics_buffer = {}
         return metrics
 
-    def save_model(self, epoch: int, algo: _SaveProtocol) -> None:
+    def save_model(self, epoch: int, algo: _SaveProtocol, model_label:str="") -> None:
         if self._save_metrics:
             # save entire model
-            model_path = os.path.join(self._logdir, f"model_{epoch}.pt")
+            model_filename = f"model_{epoch}.pt" if model_label=="" else f"model_{model_label}.pt"
+            model_path = os.path.join(self._logdir, model_filename)
             algo.save_model(model_path)
             LOG.info(f"Model parameters are saved to {model_path}")
 

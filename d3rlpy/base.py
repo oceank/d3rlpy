@@ -175,6 +175,8 @@ class LearnableBase:
         self._active_logger = None
         self._grad_step = 0
 
+        self._learning_log_dir = None
+
         if kwargs and len(kwargs.keys()) > 0:
             LOG.warning("Unused arguments are passed.", **kwargs)
 
@@ -570,6 +572,7 @@ class LearnableBase:
 
         # add reference to active logger to algo class during fit
         self._active_logger = logger
+        self._learning_log_dir = logger.log_dir
 
         # initialize scaler
         if self._scaler:
@@ -615,6 +618,7 @@ class LearnableBase:
         self._loss_history = defaultdict(list)
 
         # training loop
+        best_test_scorer = -np.inf
         total_step = 0
         for epoch in range(1, n_epochs + 1):
 
@@ -689,6 +693,11 @@ class LearnableBase:
             # save model parameters
             if epoch % save_interval == 0:
                 logger.save_model(total_step, self)
+
+                # save the best model so far
+                if best_test_scorer <= self._eval_results['environment'][-1]:
+                    best_test_scorer = self._eval_results['environment'][-1]
+                    logger.save_model(total_step, self, model_label="best")
 
             yield epoch, metrics
 

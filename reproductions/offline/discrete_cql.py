@@ -40,7 +40,6 @@ def main():
             n_steps_per_epoch=125000,
             scorers={
                 'environment': env_scorer,
-                'td_error': d3rlpy.metrics.td_error_scorer,
             },
             experiment_name=f"DiscreteCQL_{args.game}_{args.seed}")
 
