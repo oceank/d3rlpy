@@ -83,27 +83,7 @@ def main(args):
         # Online Training
         # prepare algorithm for online learning
         print(f"Online Learning: Phase {offline_bootstrap_phase_idx}/{2+args.num_offline_learning_bootstrap}")
-        '''
-        if offline_bootstrap_phase_idx == 1: # collect 5k interactions using random policy to initiate the buffer
-            print(f"Random Exploration for {args.update_start_step_online_learning} steps to initiate the buffer before online learning")
-            experiment_name_online_algo_exploration = f"{args.env_name}_seed{args.seed}_{of_and_on_flag}_online{online_algo_name}_initialExploration"
-            explorer = d3rlpy.online.explorers.LinearDecayEpsilonGreedy(
-            start_epsilon=1.0, end_epsilon=1.0, duration=args.update_start_step_online_learning) # 500/10k, 2k/100k, 1M/50M
-            ddqn.fit_online(
-                env,
-                buffer,
-                explorer,
-                n_steps=args.update_start_step_online_learning, # number of max steps of random exploration for initiating the buffer
-                n_steps_per_epoch=args.update_start_step_online_learning,
-                update_interval=1, # update every interaction
-                update_start_step=args.update_start_step_online_learning,
-                eval_env=eval_env,
-                eval_epsilon=0.01,
-                save_interval = 1, # save the initial model at the end of random exploration
-                experiment_name = experiment_name_online_algo_exploration,
-                show_progress = args.show_progress,
-            )
-        '''
+
         # Bootstrap online learning with the offline-learned Q-function
         if  offline_bootstrap_phase_idx>1:
             target_cql = best_cql if args.bootstrap_online_with_best_offline_model else cql
