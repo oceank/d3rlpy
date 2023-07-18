@@ -25,12 +25,15 @@ def main(args):
 
     env_scorer = d3rlpy.metrics.evaluate_on_environment(env, n_trials=args.eval_episode_num, epsilon=0.001)
 
-    save_interval = 100 # save the model every 100 epochs
+
+    n_steps=50000000 // 8, # divide by 4 - 100 epochs, divide by 8 - 50 epochs
+    n_steps_per_epoch=125000, # 50000000 // 4 // 125000 = 100 epochs
+    save_interval = n_steps//n_steps_per_epoch # save the model after the last epoch
     cql.fit(
         dataset,
         eval_episodes=[None],
-        n_steps=50000000 // 8, # divide by 4 - 100 epochs, divide by 8 - 50 epochs
-        n_steps_per_epoch=125000, # 50000000 // 4 // 125000 = 100 epochs
+        n_steps=n_steps,
+        n_steps_per_epoch=n_steps_per_epoch,
         scorers={
             'environment': env_scorer,
         },
