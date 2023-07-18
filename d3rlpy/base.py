@@ -572,7 +572,7 @@ class LearnableBase:
 
         # add reference to active logger to algo class during fit
         self._active_logger = logger
-        self._learning_log_dir = logger.log_dir
+        self._learning_log_dir = logger._logdir
 
         # initialize scaler
         if self._scaler:
@@ -687,17 +687,18 @@ class LearnableBase:
             if (epoch%n_epochs_per_eval == 0) and (scorers and eval_episodes):
                 self._evaluate(eval_episodes, scorers, logger)
 
+                # save the best model so far
+                # The score name 'environment' is hard-coded here for now
+                if best_test_scorer < self._eval_results['environment'][-1]:
+                    best_test_scorer = self._eval_results['environment'][-1]
+                    logger.save_model(total_step, self, model_label="best")
+
             # save metrics
             metrics = logger.commit(epoch, total_step)
 
             # save model parameters
             if epoch % save_interval == 0:
                 logger.save_model(total_step, self)
-
-                # save the best model so far
-                if best_test_scorer <= self._eval_results['environment'][-1]:
-                    best_test_scorer = self._eval_results['environment'][-1]
-                    logger.save_model(total_step, self, model_label="best")
 
             yield epoch, metrics
 

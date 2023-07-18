@@ -163,7 +163,7 @@ def main(args):
         )
 
         if args.bootstrap_online_with_best_offline_model:
-            best_model_path = os.path.join(cql._learning_log_dir, "moeld_best.pt")
+            best_model_path = os.path.join(cql._learning_log_dir, "model_best.pt")
             best_cql.load_model(best_model_path)
 
     print('training finished!')
