@@ -26,7 +26,6 @@ def main(args):
     env = d3rlpy.envs.Atari(gym.make(args.env_name))
     eval_env = d3rlpy.envs.Atari(gym.make(args.env_name), is_eval=True)
     set_seed(args.seed, env=env, eval_env=eval_env)
-    eval_env_scorer = d3rlpy.metrics.evaluate_on_environment(eval_env, n_trials=args.eval_episode_num, epsilon=0.001)
 
     num_steps_per_epoch_online_learning = args.num_steps // args.num_online_epochs
     num_critics = 2
@@ -88,10 +87,10 @@ if __name__ == '__main__':
     #parser.add_argument('--log_dir', required=True)
     parser.add_argument('--seed', type=int, default=0)
 
-    parser.add_argument('--num_steps', type=int, default=20000000, metavar='N',
-                        help='maximum number of training steps (default: 20000000 (20M))')
-    parser.add_argument('--num_online_epochs', type=int, default=20, metavar='N',
-                        help='number of training epochs per phase during online learning (default: 20)')
+    parser.add_argument('--num_steps', type=int, default=5000000, metavar='N',
+                        help='maximum number of training steps (default: 5000000 (5M))')
+    parser.add_argument('--num_online_epochs', type=int, default=50, metavar='N',
+                        help='number of training epochs per phase during online learning (default: 50)')
     parser.add_argument('--eval_episode_num', type=int, default=32,
                         help='Number of evaluation episodes (default: 32)')
 
