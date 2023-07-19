@@ -153,6 +153,7 @@ def main(args):
             mdp_dataset = buffer.to_mdp_dataset()
             num_steps_per_epoch_offline_learning = 125000
             num_training_steps_offline_learning = num_steps_per_epoch_offline_learning * args.num_offline_epochs
+            experiment_name_offline_algo = f"{experiment_name_offline_algo}_{args.num_offline_epochs}epochs"
             cql.fit(
                 mdp_dataset.episodes, #buffer._transitions._buffer[: num_transitions_in_buffer],
                 eval_episodes=[None], 
