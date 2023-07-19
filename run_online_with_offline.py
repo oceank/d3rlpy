@@ -67,12 +67,13 @@ def main(args):
     ddqn.build_with_env(env)
     of_and_on_flag = "of4on"
     
-    num_steps_per_phase = args.num_steps // (2+args.num_offline_learning_bootstrap) # 2: excluding the initial and the last portions
+    total_phases = 1+args.num_offline_learning_bootstrap+1 # offline learning is not applied to the 1st and the last phases
+    num_steps_per_phase = args.num_steps // total_phases
     num_steps_per_epoch_online_learning = args.num_steps // args.num_online_epochs
   
-    for offline_bootstrap_phase_idx in range(1, args.num_offline_learning_bootstrap+3):
+    for offline_bootstrap_phase_idx in range(1, 1+total_phases):
 
-        print(f"Offline Learning For Online Learning: Phase {offline_bootstrap_phase_idx}/{2+args.num_offline_learning_bootstrap}")
+        print(f"Offline Learning For Online Learning: Phase {offline_bootstrap_phase_idx}/{total_phases}")
     
         # experiment_name: online_<algo1>_with_offline_<algo2>_on_<env_name>_seed_<seed>
         #    <env_name>_seed<seed>_<of4on/ofAon>_online<algo1>_phase<offline_bootstrap_phase_idx>
@@ -82,10 +83,12 @@ def main(args):
 
         # Online Training
         # prepare algorithm for online learning
-        print(f"Online Learning: Phase {offline_bootstrap_phase_idx}/{2+args.num_offline_learning_bootstrap}")
+        print(f"Online Learning: Phase {offline_bootstrap_phase_idx}/{total_phases}")
 
         # Bootstrap online learning with the offline-learned Q-function
-        if  offline_bootstrap_phase_idx>1:
+        #   The first offline learning happens at the phase 2,
+        #   so the first bootstraped online learning is at the phase 3.
+        if  offline_bootstrap_phase_idx>2:
             target_cql = best_cql if args.bootstrap_online_with_best_offline_model else cql
             ddqn.copy_q_function_from(target_cql)
             ddqn.reset_optimizer_states() # might not be necessary
@@ -118,53 +121,55 @@ def main(args):
 
         # Offline training
         # prepare algorithm
-        print(f"Offline Learning: Phase {offline_bootstrap_phase_idx}/{2+args.num_offline_learning_bootstrap}")
+        # Offline learning is not applied to the 1st and the last phases
+        if offline_bootstrap_phase_idx>1 and offline_bootstrap_phase_idx<total_phases:
+            print(f"Offline Learning: Phase {offline_bootstrap_phase_idx}/{total_phases}")
 
-        cql = d3rlpy.algos.DiscreteCQL(
-            learning_rate=args.offline_learning_rate,
-            optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
-            batch_size=args.offline_learning_batch_size,
-            alpha=args.cql_alpha,
-            q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(
-                n_quantiles=200),
-            scaler="pixel",
-            n_frames=args.stack_frames,
-            target_update_interval=args.offline_learning_target_update_interval,
-            reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
-            use_gpu=True,
-            n_critics = num_critics,
+            cql = d3rlpy.algos.DiscreteCQL(
+                learning_rate=args.offline_learning_rate,
+                optim_factory=d3rlpy.models.optimizers.AdamFactory(eps=1e-2 / 32),
+                batch_size=args.offline_learning_batch_size,
+                alpha=args.cql_alpha,
+                q_func_factory=d3rlpy.models.q_functions.QRQFunctionFactory(
+                    n_quantiles=200),
+                scaler="pixel",
+                n_frames=args.stack_frames,
+                target_update_interval=args.offline_learning_target_update_interval,
+                reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
+                use_gpu=True,
+                n_critics = num_critics,
+                )
+
+            # Bootstrap the offline learning with the current online-learned policy:
+            #   copy Q-function from the previous offline learning phase
+            if args.bootstrap_offline_with_online:
+                cql.build_with_env(env)
+                cql.copy_q_function_from(ddqn)
+                cql.reset_optimizer_states() # might not be necessary
+                cql._impl.update_target()
+
+
+            # start training
+            mdp_dataset = buffer.to_mdp_dataset()
+            num_steps_per_epoch_offline_learning = 125000
+            num_training_steps_offline_learning = num_steps_per_epoch_offline_learning * args.num_offline_epochs
+            cql.fit(
+                mdp_dataset.episodes, #buffer._transitions._buffer[: num_transitions_in_buffer],
+                eval_episodes=[None], 
+                n_steps=num_training_steps_offline_learning, # number of training steps
+                n_steps_per_epoch=num_steps_per_epoch_offline_learning, # number of training steps per epoch
+                scorers={
+                    'environment': eval_env_scorer,
+                },
+                save_interval=args.num_offline_epochs, # save the model only at the end of the offline learning
+                experiment_name = experiment_name_offline_algo,
+                show_progress = args.show_progress, # show progress bar. Set to False when deploying in the cluster to save the log file,
+                n_epochs_per_eval = 1, # evaluate the model at the end of each epoch
             )
 
-        # Bootstrap the offline learning with the current online-learned policy:
-        #   copy Q-function from the previous offline learning phase
-        if args.bootstrap_offline_with_online:
-            cql.build_with_env(env)
-            cql.copy_q_function_from(ddqn)
-            cql.reset_optimizer_states() # might not be necessary
-            cql._impl.update_target()
-
-
-        # start training
-        mdp_dataset = buffer.to_mdp_dataset()
-        num_steps_per_epoch_offline_learning = 125000
-        num_training_steps_offline_learning = num_steps_per_epoch_offline_learning * args.num_offline_epochs
-        cql.fit(
-            mdp_dataset.episodes, #buffer._transitions._buffer[: num_transitions_in_buffer],
-            eval_episodes=[None], 
-            n_steps=num_training_steps_offline_learning, # number of training steps
-            n_steps_per_epoch=num_steps_per_epoch_offline_learning, # number of training steps per epoch
-            scorers={
-                'environment': eval_env_scorer,
-            },
-            save_interval=args.num_offline_epochs, # save the model only at the end of the offline learning
-            experiment_name = experiment_name_offline_algo,
-            show_progress = args.show_progress, # show progress bar. Set to False when deploying in the cluster to save the log file,
-            n_epochs_per_eval = 1, # evaluate the model at the end of each epoch
-        )
-
-        if args.bootstrap_online_with_best_offline_model:
-            best_model_path = os.path.join(cql._learning_log_dir, "model_best.pt")
-            best_cql.load_model(best_model_path)
+            if args.bootstrap_online_with_best_offline_model:
+                best_model_path = os.path.join(cql._learning_log_dir, "model_best.pt")
+                best_cql.load_model(best_model_path)
 
     print('training finished!')
 
