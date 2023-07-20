@@ -28,7 +28,7 @@ def main(args):
     set_seed(args.seed, env=env, eval_env=eval_env)
 
     num_steps_per_epoch_online_learning = args.num_steps // args.num_online_epochs
-    num_critics = 2
+
     buffer_max_size = 1000000 # 1M transitions
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
 
@@ -42,7 +42,7 @@ def main(args):
         reward_scaler=d3rlpy.preprocessing.ClipRewardScaler(-1.0, 1.0),
         scaler='pixel',
         use_gpu=True,
-        n_critics = num_critics,
+        n_critics = 1,
     )
     
     experiment_name_online_algo = f"{args.env_name}_seed{args.seed}_online{ddqn.__class__.__name__}_baselineAdam"

@@ -30,7 +30,7 @@ def main(args):
     online_algo_name = "DoubleDQN"
     offline_algo_name = "DiscreteCQL"
     cql = None
-    num_critics = 2
+    num_critics = 1
     buffer_max_size = 1000000 # 1M transitions
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=buffer_max_size, env=env)
 
@@ -63,6 +63,7 @@ def main(args):
             use_gpu=True,
             n_critics = num_critics,
             )
+        best_cql.build_with_env(env)
 
     ddqn.build_with_env(env)
     of_and_on_flag = "of4on"
@@ -151,14 +152,14 @@ def main(args):
 
             # start training
             mdp_dataset = buffer.to_mdp_dataset()
-            num_steps_per_epoch_offline_learning = 125000
-            num_training_steps_offline_learning = num_steps_per_epoch_offline_learning * args.num_offline_epochs
+
+            num_training_steps_offline_learning = args.num_steps_per_epoch_offline_learning * args.num_offline_epochs
             experiment_name_offline_algo = f"{experiment_name_offline_algo}_{args.num_offline_epochs}epochs"
             cql.fit(
                 mdp_dataset.episodes, #buffer._transitions._buffer[: num_transitions_in_buffer],
                 eval_episodes=[None], 
                 n_steps=num_training_steps_offline_learning, # number of training steps
-                n_steps_per_epoch=num_steps_per_epoch_offline_learning, # number of training steps per epoch
+                n_steps_per_epoch=args.num_steps_per_epoch_offline_learning, # number of training steps per epoch
                 scorers={
                     'environment': eval_env_scorer,
                 },
@@ -191,6 +192,8 @@ if __name__ == '__main__':
                         help='number of total online training epochs (default: 50).')
     parser.add_argument('--num_offline_epochs', type=int, default=10, metavar='N',
                         help='number of training epochs per phase during offline learning (default: 10)')
+    parser.add_argument('--num_steps_per_epoch_offline_learning', type=int, default=125000, metavar='N',
+                        help='number of training steps per epoch during offline learning (default: 125000)')
     parser.add_argument('--eval_episode_num', type=int, default=32,
                         help='Number of evaluation episodes (default: 32)')
     #parser.add_argument('--save_interval', type=int, default=10, metavar='N',
